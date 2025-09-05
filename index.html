@@ -157,24 +157,82 @@
 
     const app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    db = getFirestore(app);
+<script type="module">
+    import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, addDoc, updateDoc, onSnapshot, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    setLogLevel('debug');
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-board-tracker';
+
+    // ✅ Your real Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBAdB_xUyeThPH43D2qwzi0L5gmc8pdh5c",
+      authDomain: "board-tracker-646a3.firebaseapp.com",
+      projectId: "board-tracker-646a3",
+      storageBucket: "board-tracker-646a3.appspot.com",
+      messagingSenderId: "74798840513",
+      appId: "1:74798840513:web:c8b316f181b7e7e87ff240",
+      measurementId: "G-BKJVPNXMME"
+    };
+
+    let db, auth;
+    let userId = null;
+    let allBoards = [];
+    let currentSort = { column: 'createdAt', direction: 'desc' };
+    let unsubscribe = null;
+
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+
+    <script type="module">
+    import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    setLogLevel('debug');
+
+    // ✅ Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBAdB_xUyeThPH43D2qwzi0L5gmc8pdh5c",
+      authDomain: "board-tracker-646a3.firebaseapp.com",
+      projectId: "board-tracker-646a3",
+      storageBucket: "board-tracker-646a3.appspot.com",
+      messagingSenderId: "74798840513",
+      appId: "1:74798840513:web:c8b316f181b7e7e87ff240",
+      measurementId: "G-BKJVPNXMME"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // ✅ Define UI references safely
+    const ui = {
+        userInfo: document.getElementById("user-info"), // <span id="user-info"></span>
+        status: document.getElementById("status"),     // <span id="status"></span>
+        tableBody: document.getElementById("boards-table-body") // <tbody id="boards-table-body"></tbody>
+    };
+
+    let userId = null;
 
     // 🔹 Authentication
     const handleAuthentication = () => {
         onAuthStateChanged(auth, user => {
             if (user) {
                 userId = user.uid;
-                ui.userInfo.textContent = `Connected | User ID: ${userId}`;
-                setupRealtimeListener();
+                if (ui.userInfo) {
+                    ui.userInfo.textContent = `Connected | User ID: ${userId}`;
+                }
             } else {
                 signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
             }
         });
     };
 
-    // 🔹 Call after init
     handleAuthentication();
-    
+
     const setupRealtimeListener = () => {
         if (unsubscribe) unsubscribe();
         const boardsCollection = collection(db, 'artifacts', appId, 'users', userId, 'boards');
