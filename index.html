@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circuit Board Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .table-container {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        th {
+            position: sticky;
+            top: 0;
+            background-color: #f9fafb;
+            z-index: 10;
+        }
+    
+        .sort-icon {
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        th:hover .sort-icon {
+            opacity: 1;
+        }
+
+        #editModal {
+            z-index: 50; /* Ensure the modal is always on top */
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+
+<div id="app" class="container mx-auto p-4 md:p-8">
+    <header class="text-center mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Board Production Tracker</h1>
+        <p class="text-slate-600 mt-2">A real-time collaborative tool to manage your team's circuit board production.</p>
+        <div id="user-info" class="text-xs text-slate-400 mt-4 font-mono">Connecting...</div>
+    </header>
+
+    <main>
+        <section id="add-board-section" class="bg-white p-6 rounded-xl shadow-lg mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-slate-800">Add New Board(s)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                <div>
+                    <label for="technician" class="block text-sm font-medium text-slate-700 mb-1">Technician Name</label>
+                    <input type="text" id="technician" placeholder="Enter name" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div>
+                    <label for="boardName" class="block text-sm font-medium text-slate-700 mb-1">Board Name</label>
+                    <input type="text" id="boardName" placeholder="e.g., 251_ardal_bridge_v1.1" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div>
+                    <label for="quantity" class="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
+                    <input type="number" id="quantity" value="1" min="1" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div>
+                    <label for="dateInput" class="block text-sm font-medium text-slate-700 mb-1">Date (Optional)</label>
+                    <input type="date" id="dateInput" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                 <div class="lg:col-span-1">
+                    <label for="comments" class="block text-sm font-medium text-slate-700 mb-1">Initial Comments</label>
+                    <input type="text" id="comments" placeholder="(Optional)" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+                <div class="col-span-1 md:col-span-2 lg:col-span-5">
+                    <button id="addBoardButton" class="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-md">Add Board(s)</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="display-section" class="bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-2xl font-semibold mb-4 text-slate-800">Boards Produced</h2>
+            <div class="mb-4">
+                 <input type="text" id="searchInput" placeholder="Search by serial, name, technician, or date..." class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <div class="table-container border border-slate-200 rounded-lg">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th data-sort-by="serialNumber" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors">
+                                <div class="flex items-center">Serial Number<span class="sort-icon ml-1.5"></span></div>
+                            </th>
+                            <th data-sort-by="boardName" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors">
+                                <div class="flex items-center">Board Name<span class="sort-icon ml-1.5"></span></div>
+                            </th>
+                            <th data-sort-by="createdAt" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors">
+                                <div class="flex items-center">Date<span class="sort-icon ml-1.5"></span></div>
+                            </th>
+                            <th data-sort-by="technician" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition-colors">
+                                <div class="flex items-center">Technician<span class="sort-icon ml-1.5"></span></div>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Comments</th>
+                        </tr>
+                    </thead>
+                    <tbody id="boardsTableBody" class="bg-white divide-y divide-slate-200">
+                    </tbody>
+                </table>
+                 <div id="loading" class="text-center p-6 text-slate-500">Loading data...</div>
+                 <div id="no-results" class="hidden text-center p-6 text-slate-500">No boards found.</div>
+            </div>
+        </section>
+    </main>
+
+    <div id="editModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex justify-center items-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md transform transition-all" role="dialog" aria-modal="true">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-slate-800">Edit Comments</h3>
+                <button id="closeModalButton" class="text-gray-500 hover:text-gray-800 transition-colors text-2xl">&times;</button>
+            </div>
+            <div class="mb-4">
+                <label for="modalSerialNumber" class="block text-sm font-medium text-slate-700 mb-1">Serial Number</label>
+                <input type="text" id="modalSerialNumber" readonly class="w-full p-2 bg-slate-100 text-slate-500 rounded-md">
+            </div>
+            <div class="mb-6">
+                <label for="modalComments" class="block text-sm font-medium text-slate-700 mb-1">Comments</label>
+                <textarea id="modalComments" rows="5" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+            <div class="flex justify-end space-x-3">
+                 <button id="cancelCommentsButton" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors font-semibold">Cancel</button>
+                <button id="saveCommentsButton" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, addDoc, updateDoc, onSnapshot, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    setLogLevel('debug');
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-board-tracker';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    
+    const ui = {
+        technician: document.getElementById('technician'),
+        boardName: document.getElementById('boardName'),
+        quantity: document.getElementById('quantity'),
+        dateInput: document.getElementById('dateInput'),
+        comments: document.getElementById('comments'),
+        addBoardButton: document.getElementById('addBoardButton'),
+        searchInput: document.getElementById('searchInput'),
+        tableBody: document.getElementById('boardsTableBody'),
+        userInfo: document.getElementById('user-info'),
+        loading: document.getElementById('loading'),
+        noResults: document.getElementById('no-results'),
+        modal: document.getElementById('editModal'),
+        modalSerial: document.getElementById('modalSerialNumber'),
+        modalComments: document.getElementById('modalComments'),
+        saveButton: document.getElementById('saveCommentsButton'),
+        cancelButton: document.getElementById('cancelCommentsButton'),
+        closeButton: document.getElementById('closeModalButton'),
+        headers: document.querySelectorAll('[data-sort-by]')
+    };
+
+    let db, auth;
+    let userId = null;
+    let allBoards = [];
+    let currentSort = { column: 'createdAt', direction: 'desc' };
+    let unsubscribe = null;
+
+    const initFirebase = () => {
+        try {
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            handleAuthentication();
+        } catch (error) {
+            console.error("Firebase initialization failed:", error);
+            ui.userInfo.textContent = "Error: Could not connect to the database.";
+        }
+    };
+
+    const handleAuthentication = () => {
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                userId = user.uid;
+                ui.userInfo.textContent = `Connected | User ID: ${userId}`;
+                setupRealtimeListener();
+            } else if (initialAuthToken) {
+                signInWithCustomToken(auth, initialAuthToken).catch(err => console.error("Custom token sign-in failed:", err));
+            } else {
+                signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
+            }
+        });
+    };
+    
+    const setupRealtimeListener = () => {
+        if (unsubscribe) unsubscribe();
+        const boardsCollection = collection(db, 'artifacts', appId, 'users', userId, 'boards');
+        unsubscribe = onSnapshot(boardsCollection, snapshot => {
+            ui.loading.classList.add('hidden');
+            allBoards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            render();
+        }, error => {
+            console.error("Error fetching data:", error);
+            ui.loading.textContent = "Failed to load data.";
+        });
+    };
+
+    const handleAddBoards = async () => {
+        const technician = ui.technician.value.trim();
+        const boardName = ui.boardName.value.trim();
+        const quantity = parseInt(ui.quantity.value, 10);
+        if (!technician || !boardName || isNaN(quantity) || quantity < 1) {
+            alert("Please fill in Technician Name, Board Name, and a valid Quantity.");
+            return;
+        }
+
+        const selectedDate = ui.dateInput.value ? new Date(ui.dateInput.value) : new Date();
+        const year = String(selectedDate.getFullYear()).slice(-2);
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(selectedDate.getDate()).padStart(2, '0');
+        const datePart = `${year}${month}${day}`;
+        const creationDateString = `${selectedDate.getFullYear()}-${month}-${day}`;
+        const boardNumberPart = (boardName.match(/^\d{3}/) || ['000'])[0];
+
+        const boardsCollection = collection(db, 'artifacts', appId, 'users', userId, 'boards');
+        
+        let lastAutonumber = 0;
+        try {
+            const q = query(boardsCollection, where('boardName', '==', boardName), where('creationDate', '==', creationDateString));
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach(doc => {
+                const sn = doc.data().serialNumber;
+                if(sn){
+                    const parts = sn.split('-');
+                    const num = parseInt(parts[parts.length - 1], 10);
+                    if (!isNaN(num) && num > lastAutonumber) {
+                        lastAutonumber = num;
+                    }
+                }
+            });
+        } catch(e) {
+            console.error("Could not fetch latest autonumber, starting from 0. Error:", e);
+        }
+
+        for (let i = 0; i < quantity; i++) {
+            lastAutonumber++;
+            const autonumberPart = String(lastAutonumber).padStart(3, '0');
+            const serialNumber = `SN-${datePart}-${boardNumberPart}-${autonumberPart}`;
+            
+            const boardData = {
+                serialNumber,
+                boardName,
+                technician,
+                comments: ui.comments.value.trim() || 'N/A',
+                createdAt: new Date(),
+                creationDate: creationDateString,
+                userId,
+            };
+
+            try {
+                await addDoc(boardsCollection, boardData);
+            } catch (e) {
+                console.error("Error adding document: ", e);
+            }
+        }
+        
+        ui.technician.value = '';
+        ui.boardName.value = '';
+        ui.comments.value = '';
+        ui.quantity.value = '1';
+        ui.dateInput.value = '';
+    };
+
+    const handleUpdateComments = async () => {
+        const docId = ui.saveButton.dataset.docId;
+        const newComments = ui.modalComments.value;
+        if (!docId) return;
+        
+        const docRef = doc(db, 'artifacts', appId, 'users', userId, 'boards', docId);
+        try {
+            await updateDoc(docRef, { comments: newComments });
+            closeEditModal();
+        } catch (e) {
+            console.error("Error updating comments:", e);
+        }
+    };
+    
+    const render = () => {
+        const searchTerm = ui.searchInput.value.toLowerCase();
+        
+        let filteredBoards = allBoards.filter(board => {
+            return Object.values(board).some(value => 
+                String(value).toLowerCase().includes(searchTerm)
+            ) || new Date(board.createdAt.seconds * 1000).toLocaleDateString().includes(searchTerm);
+        });
+        
+        filteredBoards.sort((a, b) => {
+            const valA = a[currentSort.column];
+            const valB = b[currentSort.column];
+            let comparison = 0;
+            const aValue = (typeof valA === 'string') ? valA.toLowerCase() : valA?.seconds || 0;
+            const bValue = (typeof valB === 'string') ? valB.toLowerCase() : valB?.seconds || 0;
+
+            if (aValue > bValue) comparison = 1;
+            else if (aValue < bValue) comparison = -1;
+            
+            return currentSort.direction === 'asc' ? comparison : -comparison;
+        });
+
+        updateSortIcons();
+        populateTable(filteredBoards);
+    };
+
+    const populateTable = (boards) => {
+        ui.tableBody.innerHTML = '';
+        if (boards.length === 0) {
+            ui.noResults.classList.remove('hidden');
+            return;
+        }
+        ui.noResults.classList.add('hidden');
+
+        const fragment = document.createDocumentFragment();
+        boards.forEach(board => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50 transition-colors';
+            const commentsText = board.comments || 'N/A';
+            tr.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${board.serialNumber}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${board.boardName}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${new Date(board.createdAt.seconds * 1000).toLocaleDateString()}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${board.technician}</td>
+                <td class="px-6 py-4 text-sm text-slate-500">
+                    <div class="flex items-center justify-between">
+                        <span class="truncate pr-2" title="${commentsText}">${commentsText}</span>
+                        <button class="edit-button text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0" data-id="${board.id}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"></path></svg>
+                        </button>
+                    </div>
+                </td>
+            `;
+            fragment.appendChild(tr);
+        });
+        ui.tableBody.appendChild(fragment);
+
+        ui.tableBody.querySelectorAll('.edit-button').forEach(button => {
+            button.addEventListener('click', () => openEditModal(button.dataset.id));
+        });
+    };
+
+    const handleSort = (e) => {
+        const newSortColumn = e.currentTarget.dataset.sortBy;
+        if (currentSort.column === newSortColumn) {
+            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSort.column = newSortColumn;
+            currentSort.direction = 'asc';
+        }
+        render();
+    };
+
+    const updateSortIcons = () => {
+        ui.headers.forEach(header => {
+            const icon = header.querySelector('.sort-icon');
+            if (header.dataset.sortBy === currentSort.column) {
+                icon.textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+            } else {
+                icon.textContent = '↕';
+            }
+        });
+    };
+    
+    const openEditModal = (boardId) => {
+        const boardToEdit = allBoards.find(b => b.id === boardId);
+        if (!boardToEdit) return;
+        ui.modalSerial.value = boardToEdit.serialNumber;
+        ui.modalComments.value = boardToEdit.comments;
+        ui.saveButton.dataset.docId = boardToEdit.id;
+        ui.modal.classList.remove('hidden');
+    };
+
+    const closeEditModal = () => {
+        ui.modal.classList.add('hidden');
+    };
+
+    ui.addBoardButton.addEventListener('click', handleAddBoards);
+    ui.searchInput.addEventListener('input', render);
+    ui.headers.forEach(header => header.addEventListener('click', handleSort));
+    ui.saveButton.addEventListener('click', handleUpdateComments);
+    ui.cancelButton.addEventListener('click', closeEditModal);
+    ui.closeButton.addEventListener('click', closeEditModal);
+
+    window.onload = initFirebase;
+</script>
+</body>
+</html>
+
+
