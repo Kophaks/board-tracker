@@ -137,28 +137,16 @@
     setLogLevel('debug');
 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-board-tracker';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-    
-    const ui = {
-        technician: document.getElementById('technician'),
-        boardName: document.getElementById('boardName'),
-        quantity: document.getElementById('quantity'),
-        dateInput: document.getElementById('dateInput'),
-        comments: document.getElementById('comments'),
-        addBoardButton: document.getElementById('addBoardButton'),
-        searchInput: document.getElementById('searchInput'),
-        tableBody: document.getElementById('boardsTableBody'),
-        userInfo: document.getElementById('user-info'),
-        loading: document.getElementById('loading'),
-        noResults: document.getElementById('no-results'),
-        modal: document.getElementById('editModal'),
-        modalSerial: document.getElementById('modalSerialNumber'),
-        modalComments: document.getElementById('modalComments'),
-        saveButton: document.getElementById('saveCommentsButton'),
-        cancelButton: document.getElementById('cancelCommentsButton'),
-        closeButton: document.getElementById('closeModalButton'),
-        headers: document.querySelectorAll('[data-sort-by]')
+
+    // ✅ Your real Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBAdB_xUyeThPH43D2qwzi0L5gmc8pdh5c",
+      authDomain: "board-tracker-646a3.firebaseapp.com",
+      projectId: "board-tracker-646a3",
+      storageBucket: "board-tracker-646a3.firebasestorage.app",
+      messagingSenderId: "74798840513",
+      appId: "1:74798840513:web:c8b316f181b7e7e87ff240",
+      measurementId: "G-BKJVPNXMME"
     };
 
     let db, auth;
@@ -167,31 +155,25 @@
     let currentSort = { column: 'createdAt', direction: 'desc' };
     let unsubscribe = null;
 
-    const initFirebase = () => {
-        try {
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            handleAuthentication();
-        } catch (error) {
-            console.error("Firebase initialization failed:", error);
-            ui.userInfo.textContent = "Error: Could not connect to the database.";
-        }
-    };
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
 
+    // 🔹 Authentication
     const handleAuthentication = () => {
         onAuthStateChanged(auth, user => {
             if (user) {
                 userId = user.uid;
                 ui.userInfo.textContent = `Connected | User ID: ${userId}`;
                 setupRealtimeListener();
-            } else if (initialAuthToken) {
-                signInWithCustomToken(auth, initialAuthToken).catch(err => console.error("Custom token sign-in failed:", err));
             } else {
                 signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
             }
         });
     };
+
+    // 🔹 Call after init
+    handleAuthentication();
     
     const setupRealtimeListener = () => {
         if (unsubscribe) unsubscribe();
