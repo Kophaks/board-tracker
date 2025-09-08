@@ -168,28 +168,16 @@
     headers: document.querySelectorAll("[data-sort-by]")
   };
 
-  // Auth state
-  onAuthStateChanged(auth, async (user) => {
+  let allBoards = [];
+  let currentSort = { column: "createdAt", direction: "desc" };
+
+  // 🔹 Auth state
+  onAuthStateChanged(auth, (user) => {
     if (user) {
       ui.userInfo.textContent = `Connected | ${user.email}`;
       ui.loginBtn.classList.add("hidden");
       ui.logoutBtn.classList.remove("hidden");
-
-      try {
-        // Try to listen to Firestore (if rules block it, show unauthorized)
-        onSnapshot(boardsCollection, () => {
-          ui.unauthorized.classList.add("hidden");
-          ui.addSection.classList.remove("hidden");
-          ui.tableSection.classList.remove("hidden");
-        }, (err) => {
-          console.warn("Snapshot error:", err.message);
-          ui.unauthorized.classList.remove("hidden");
-          ui.addSection.classList.add("hidden");
-          ui.tableSection.classList.add("hidden");
-        });
-      } catch (e) {
-        ui.unauthorized.classList.remove("hidden");
-      }
+      listenBoards();
     } else {
       ui.userInfo.textContent = "Not signed in";
       ui.loginBtn.classList.remove("hidden");
@@ -199,7 +187,7 @@
     }
   });
 
-  // Login button (Popup → Redirect fallback)
+  // 🔹 Login (Popup → Redirect fallback)
   ui.loginBtn.addEventListener("click", async () => {
     try {
       const provider = new GoogleAuthProvider();
@@ -213,13 +201,176 @@
     }
   });
 
-  // Handle redirect result
+  // 🔹 Handle redirect result
   getRedirectResult(auth).catch(err => console.error("Redirect failed", err));
 
-  // Logout
+  // 🔹 Logout
   ui.logoutBtn.addEventListener("click", () => signOut(auth));
 
-  // TODO: Keep rest of your board add/list/edit logic here (unchanged from last version)
+  // 🔹 Add Boards
+  ui.addBtn.addEventListener("click", async () => {
+    const tech = ui.technician.value.trim();
+    const name = ui.boardName.value.trim();
+    let qty = parseInt(ui.quantity.value, 10);
+    const comm = ui.comments.value.trim() || "N/A";
+
+    if (!tech || !name || isNaN(qty) || qty < 1) {
+      alert("Please fill in Technician, Board Name, and valid Quantity");
+      return;
+    }
+
+    const selectedDate = ui.dateInput.value ? new Date(ui.dateInput.value) : new Date();
+    const year = String(selectedDate.getFullYear()).slice(-2);
+    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+    const day = String(selectedDate.getDate()).padStart(2, "0");
+    const datePart = `${year}${month}${day}`;
+    const creationDateString = `${selectedDate.getFullYear()}-${month}-${day}`;
+    const boardNumberPart = (name.match(/^\d{3}/) || ["000"])[0];
+
+    for (let i = 0; i < qty; i++) {
+      const autonumberPart = String(i + 1).padStart(3, "0");
+      const serialNumber = `SN-${datePart}-${boardNumberPart}-${autonumberPart}`;
+
+      const docData = {
+        serialNumber,
+        boardName: name,
+        technician: tech,
+        comments: comm,
+        createdAt: serverTimestamp(),
+        creationDate: creationDateString
+      };
+
+      try {
+        await addDoc(boardsCollection, docData);
+      } catch (e) {
+        alert("Error adding board: " + e.message);
+      }
+    }
+
+    ui.technician.value = "";
+    ui.boardName.value = "";
+    ui.comments.value = "";
+    ui.quantity.value = "1";
+    ui.dateInput.value = "";
+  });
+
+  // 🔹 Listen boards
+  function listenBoards() {
+    onSnapshot(boardsCollection, (snapshot) => {
+      ui.loading.classList.add("hidden");
+      allBoards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      ui.addSection.classList.remove("hidden");
+      ui.tableSection.classList.remove("hidden");
+      render();
+    }, (err) => {
+      console.warn("Snapshot error:", err.message);
+      ui.unauthorized.classList.remove("hidden");
+      ui.addSection.classList.add("hidden");
+      ui.tableSection.classList.add("hidden");
+    });
+  }
+
+  // 🔹 Render & Sort
+  function render() {
+    const searchTerm = ui.searchInput.value.toLowerCase();
+    let filtered = allBoards.filter(board =>
+      Object.values(board).some(value =>
+        String(value).toLowerCase().includes(searchTerm)
+      )
+    );
+
+    filtered.sort((a, b) => {
+      const valA = a[currentSort.column];
+      const valB = b[currentSort.column];
+      let aValue = (typeof valA === "string") ? valA.toLowerCase() : valA?.seconds || 0;
+      let bValue = (typeof valB === "string") ? valB.toLowerCase() : valB?.seconds || 0;
+      return currentSort.direction === "asc" ? aValue - bValue : bValue - aValue;
+    });
+
+    updateSortIcons();
+    populateTable(filtered);
+  }
+
+  function populateTable(boards) {
+    ui.tableBody.innerHTML = "";
+    if (boards.length === 0) {
+      ui.noResults.classList.remove("hidden");
+      return;
+    }
+    ui.noResults.classList.add("hidden");
+
+    const frag = document.createDocumentFragment();
+    boards.forEach(board => {
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-50";
+      const commentsText = board.comments || "N/A";
+      tr.innerHTML = `
+        <td class="px-6 py-4 text-sm font-medium text-slate-900">${board.serialNumber}</td>
+        <td class="px-6 py-4 text-sm text-slate-500">${board.boardName}</td>
+        <td class="px-6 py-4 text-sm text-slate-500">${board.createdAt?.toDate().toLocaleDateString() ?? "-"}</td>
+        <td class="px-6 py-4 text-sm text-slate-500">${board.technician}</td>
+        <td class="px-6 py-4 text-sm text-slate-500 flex justify-between items-center">
+          <span class="truncate pr-2" title="${commentsText}">${commentsText}</span>
+          <button class="edit-button text-blue-500 hover:text-blue-700" data-id="${board.id}">✏️</button>
+        </td>
+      `;
+      frag.appendChild(tr);
+    });
+    ui.tableBody.appendChild(frag);
+
+    ui.tableBody.querySelectorAll(".edit-button").forEach(btn => {
+      btn.addEventListener("click", () => openEditModal(btn.dataset.id));
+    });
+  }
+
+  // 🔹 Sorting
+  ui.headers.forEach(h => h.addEventListener("click", () => {
+    if (currentSort.column === h.dataset.sortBy) {
+      currentSort.direction = currentSort.direction === "asc" ? "desc" : "asc";
+    } else {
+      currentSort.column = h.dataset.sortBy;
+      currentSort.direction = "asc";
+    }
+    render();
+  }));
+
+  function updateSortIcons() {
+    ui.headers.forEach(h => {
+      const icon = h.querySelector(".sort-icon");
+      if (h.dataset.sortBy === currentSort.column) {
+        icon.textContent = currentSort.direction === "asc" ? "↑" : "↓";
+      } else {
+        icon.textContent = "↕";
+      }
+    });
+  }
+
+  ui.searchInput.addEventListener("input", render);
+
+  // 🔹 Edit Modal
+  function openEditModal(boardId) {
+    const board = allBoards.find(b => b.id === boardId);
+    if (!board) return;
+    ui.modalSerial.value = board.serialNumber;
+    ui.modalComments.value = board.comments;
+    ui.saveButton.dataset.docId = board.id;
+    ui.modal.classList.remove("hidden");
+  }
+  function closeEditModal() { ui.modal.classList.add("hidden"); }
+  ui.cancelButton.addEventListener("click", closeEditModal);
+  ui.closeButton.addEventListener("click", closeEditModal);
+
+  ui.saveButton.addEventListener("click", async () => {
+    const docId = ui.saveButton.dataset.docId;
+    const newComments = ui.modalComments.value;
+    if (!docId) return;
+    try {
+      await updateDoc(doc(db, "artifacts", appId, "boards", docId), { comments: newComments });
+      closeEditModal();
+    } catch (e) {
+      alert("Error updating comments: " + e.message);
+    }
+  });
 </script>
 </body>
 </html>
