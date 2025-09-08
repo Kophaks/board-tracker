@@ -172,18 +172,39 @@
   let currentSort = { column: "createdAt", direction: "desc" };
 
   // 🔹 Auth state
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      ui.userInfo.textContent = `Connected | ${user.email}`;
-      ui.loginBtn.classList.add("hidden");
-      ui.logoutBtn.classList.remove("hidden");
-      listenBoards();
-    } else {
-      ui.userInfo.textContent = "Not signed in";
-      ui.loginBtn.classList.remove("hidden");
-      ui.logoutBtn.classList.add("hidden");
-      ui.addSection.classList.add("hidden");
-      ui.tableSection.classList.add("hidden");
+  onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    ui.userInfo.textContent = `Connected | ${user.email}`;
+    ui.loginBtn.classList.add("hidden");
+    ui.logoutBtn.classList.remove("hidden");
+
+    try {
+      // Quick test read
+      onSnapshot(boardsCollection, (snapshot) => {
+        ui.unauthorized.classList.add("hidden");
+        ui.addSection.classList.remove("hidden");
+        ui.tableSection.classList.remove("hidden");
+
+        allBoards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        render();
+      }, (err) => {
+        console.warn("Snapshot error:", err.message);
+        if (err.code === "permission-denied") {
+          ui.unauthorized.classList.remove("hidden");
+        }
+      });
+
+    } catch (e) {
+      console.error("Error listening:", e);
+      ui.unauthorized.classList.remove("hidden");
+    }
+
+  } else {
+    ui.userInfo.textContent = "Not signed in";
+    ui.loginBtn.classList.remove("hidden");
+    ui.logoutBtn.classList.add("hidden");
+    ui.addSection.classList.add("hidden");
+    ui.tableSection.classList.add("hidden");
     }
   });
 
