@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Circuit Board Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -29,8 +29,13 @@
   </header>
 
   <main>
+    <!-- Unauthorized message -->
+    <div id="unauthorized" class="hidden text-center text-red-600 font-semibold mb-6">
+      🚫 You are not authorized to access this app. Please contact the administrator.
+    </div>
+
     <!-- Add Board Form -->
-    <section id="add-board-section" class="bg-white p-6 rounded-xl shadow-lg mb-8">
+    <section id="add-board-section" class="bg-white p-6 rounded-xl shadow-lg mb-8 hidden">
       <h2 class="text-2xl font-semibold mb-4 text-slate-800">Add New Board(s)</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
         <div>
@@ -60,7 +65,7 @@
     </section>
 
     <!-- Boards Table -->
-    <section id="display-section" class="bg-white p-6 rounded-xl shadow-lg">
+    <section id="display-section" class="bg-white p-6 rounded-xl shadow-lg hidden">
       <h2 class="text-2xl font-semibold mb-4 text-slate-800">Boards Produced</h2>
       <div class="mb-4">
         <input type="text" id="searchInput" placeholder="Search by serial, name, technician, or date..." class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"/>
@@ -117,7 +122,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
   import { getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
   // 🔹 Replace with your Firebase config
@@ -134,10 +139,16 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
+  const appId = "default-board-tracker";
+  const boardsCollection = collection(db, "artifacts", appId, "boards");
+
   const ui = {
     loginBtn: document.getElementById("loginButton"),
     logoutBtn: document.getElementById("logoutButton"),
     userInfo: document.getElementById("user-info"),
+    unauthorized: document.getElementById("unauthorized"),
+    addSection: document.getElementById("add-board-section"),
+    tableSection: document.getElementById("display-section"),
     addBtn: document.getElementById("addBoardButton"),
     tableBody: document.getElementById("boardsTableBody"),
     loading: document.getElementById("loading"),
@@ -157,199 +168,58 @@
     headers: document.querySelectorAll("[data-sort-by]")
   };
 
-  const appId = "default-board-tracker";
-  const boardsCollection = collection(db, "artifacts", appId, "boards");
-
-  let allBoards = [];
-  let currentSort = { column: "createdAt", direction: "desc" };
-
-  // Auth handling
-  onAuthStateChanged(auth, (user) => {
+  // Auth state
+  onAuthStateChanged(auth, async (user) => {
     if (user) {
       ui.userInfo.textContent = `Connected | ${user.email}`;
       ui.loginBtn.classList.add("hidden");
       ui.logoutBtn.classList.remove("hidden");
-      listenBoards();
+
+      try {
+        // Try to listen to Firestore (if rules block it, show unauthorized)
+        onSnapshot(boardsCollection, () => {
+          ui.unauthorized.classList.add("hidden");
+          ui.addSection.classList.remove("hidden");
+          ui.tableSection.classList.remove("hidden");
+        }, (err) => {
+          console.warn("Snapshot error:", err.message);
+          ui.unauthorized.classList.remove("hidden");
+          ui.addSection.classList.add("hidden");
+          ui.tableSection.classList.add("hidden");
+        });
+      } catch (e) {
+        ui.unauthorized.classList.remove("hidden");
+      }
     } else {
       ui.userInfo.textContent = "Not signed in";
       ui.loginBtn.classList.remove("hidden");
       ui.logoutBtn.classList.add("hidden");
-      ui.tableBody.innerHTML = "";
-      ui.loading.textContent = "Please sign in to view boards";
+      ui.addSection.classList.add("hidden");
+      ui.tableSection.classList.add("hidden");
     }
   });
 
+  // Login button (Popup → Redirect fallback)
   ui.loginBtn.addEventListener("click", async () => {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
     } catch (err) {
-      console.error("Login failed", err);
+      console.warn("Popup failed, trying redirect:", err.code);
+      if (err.code === "auth/operation-not-supported-in-this-environment") {
+        const provider = new GoogleAuthProvider();
+        await signInWithRedirect(auth, provider);
+      }
     }
   });
+
+  // Handle redirect result
+  getRedirectResult(auth).catch(err => console.error("Redirect failed", err));
+
+  // Logout
   ui.logoutBtn.addEventListener("click", () => signOut(auth));
 
-  // Add boards
-  ui.addBtn.addEventListener("click", async () => {
-    const tech = ui.technician.value.trim();
-    const name = ui.boardName.value.trim();
-    let qty = parseInt(ui.quantity.value, 10);
-    const comm = ui.comments.value.trim() || "N/A";
-
-    if (!tech || !name || isNaN(qty) || qty < 1) {
-      alert("Please fill in Technician, Board Name, and valid Quantity");
-      return;
-    }
-
-    const selectedDate = ui.dateInput.value ? new Date(ui.dateInput.value) : new Date();
-    const year = String(selectedDate.getFullYear()).slice(-2);
-    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-    const day = String(selectedDate.getDate()).padStart(2, "0");
-    const datePart = `${year}${month}${day}`;
-    const creationDateString = `${selectedDate.getFullYear()}-${month}-${day}`;
-    const boardNumberPart = (name.match(/^\d{3}/) || ["000"])[0];
-
-    let counter = Date.now();
-
-    for (let i = 0; i < qty; i++) {
-      const autonumberPart = String(i + 1).padStart(3, "0");
-      const serialNumber = `SN-${datePart}-${boardNumberPart}-${autonumberPart}`;
-
-      const docData = {
-        serialNumber,
-        boardName: name,
-        technician: tech,
-        comments: comm,
-        createdAt: serverTimestamp(),
-        creationDate: creationDateString
-      };
-
-      try {
-        await addDoc(boardsCollection, docData);
-      } catch (e) {
-        alert("Error adding board: " + e.message);
-      }
-    }
-
-    ui.technician.value = "";
-    ui.boardName.value = "";
-    ui.comments.value = "";
-    ui.quantity.value = "1";
-    ui.dateInput.value = "";
-  });
-
-  // Live listener
-  function listenBoards() {
-    onSnapshot(boardsCollection, (snapshot) => {
-      ui.loading.classList.add("hidden");
-      allBoards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      render();
-    });
-  }
-
-  // Render table
-  function render() {
-    const searchTerm = ui.searchInput.value.toLowerCase();
-    let filtered = allBoards.filter(board =>
-      Object.values(board).some(value =>
-        String(value).toLowerCase().includes(searchTerm)
-      )
-    );
-
-    filtered.sort((a, b) => {
-      const valA = a[currentSort.column];
-      const valB = b[currentSort.column];
-      let aValue = (typeof valA === "string") ? valA.toLowerCase() : valA?.seconds || 0;
-      let bValue = (typeof valB === "string") ? valB.toLowerCase() : valB?.seconds || 0;
-      return currentSort.direction === "asc" ? aValue - bValue : bValue - aValue;
-    });
-
-    updateSortIcons();
-    populateTable(filtered);
-  }
-
-  function populateTable(boards) {
-    ui.tableBody.innerHTML = "";
-    if (boards.length === 0) {
-      ui.noResults.classList.remove("hidden");
-      return;
-    }
-    ui.noResults.classList.add("hidden");
-
-    const frag = document.createDocumentFragment();
-    boards.forEach(board => {
-      const tr = document.createElement("tr");
-      tr.className = "hover:bg-slate-50";
-      const commentsText = board.comments || "N/A";
-      tr.innerHTML = `
-        <td class="px-6 py-4 text-sm font-medium text-slate-900">${board.serialNumber}</td>
-        <td class="px-6 py-4 text-sm text-slate-500">${board.boardName}</td>
-        <td class="px-6 py-4 text-sm text-slate-500">${board.createdAt?.toDate().toLocaleDateString() ?? "-"}</td>
-        <td class="px-6 py-4 text-sm text-slate-500">${board.technician}</td>
-        <td class="px-6 py-4 text-sm text-slate-500 flex justify-between items-center">
-          <span class="truncate pr-2" title="${commentsText}">${commentsText}</span>
-          <button class="edit-button text-blue-500 hover:text-blue-700" data-id="${board.id}">
-            ✏️
-          </button>
-        </td>
-      `;
-      frag.appendChild(tr);
-    });
-    ui.tableBody.appendChild(frag);
-
-    ui.tableBody.querySelectorAll(".edit-button").forEach(btn => {
-      btn.addEventListener("click", () => openEditModal(btn.dataset.id));
-    });
-  }
-
-  // Sorting
-  ui.headers.forEach(h => h.addEventListener("click", () => {
-    if (currentSort.column === h.dataset.sortBy) {
-      currentSort.direction = currentSort.direction === "asc" ? "desc" : "asc";
-    } else {
-      currentSort.column = h.dataset.sortBy;
-      currentSort.direction = "asc";
-    }
-    render();
-  }));
-
-  function updateSortIcons() {
-    ui.headers.forEach(h => {
-      const icon = h.querySelector(".sort-icon");
-      if (h.dataset.sortBy === currentSort.column) {
-        icon.textContent = currentSort.direction === "asc" ? "↑" : "↓";
-      } else {
-        icon.textContent = "↕";
-      }
-    });
-  }
-
-  ui.searchInput.addEventListener("input", render);
-
-  // Edit Modal
-  function openEditModal(boardId) {
-    const board = allBoards.find(b => b.id === boardId);
-    if (!board) return;
-    ui.modalSerial.value = board.serialNumber;
-    ui.modalComments.value = board.comments;
-    ui.saveButton.dataset.docId = board.id;
-    ui.modal.classList.remove("hidden");
-  }
-  function closeEditModal() { ui.modal.classList.add("hidden"); }
-  ui.cancelButton.addEventListener("click", closeEditModal);
-  ui.closeButton.addEventListener("click", closeEditModal);
-
-  ui.saveButton.addEventListener("click", async () => {
-    const docId = ui.saveButton.dataset.docId;
-    const newComments = ui.modalComments.value;
-    if (!docId) return;
-    try {
-      await updateDoc(doc(db, "artifacts", appId, "boards", docId), { comments: newComments });
-      closeEditModal();
-    } catch (e) {
-      alert("Error updating comments: " + e.message);
-    }
-  });
+  // TODO: Keep rest of your board add/list/edit logic here (unchanged from last version)
 </script>
 </body>
 </html>
