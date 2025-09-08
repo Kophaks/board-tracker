@@ -1,170 +1,35 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Board Production Tracker</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 text-gray-800">
-<div class="container mx-auto p-6">
-  <header class="text-center mb-6">
-    <h1 class="text-3xl font-bold">Board Production Tracker</h1>
-    <p class="text-gray-600">Shared board logs for whitelisted team members.</p>
-    <div class="mt-2 flex justify-center gap-2">
-      <button id="loginButton" class="px-4 py-2 bg-blue-500 text-white rounded-lg">Sign In with Google</button>
-      <button id="logoutButton" class="hidden px-4 py-2 bg-red-500 text-white rounded-lg">Sign Out</button>
-    </div>
-    <div id="user-info" class="text-sm text-gray-500 mt-2">Not signed in</div>
-  </header>
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    ui.userInfo.textContent = `Connected | ${user.email}`;
+    ui.loginBtn.classList.add("hidden");
+    ui.logoutBtn.classList.remove("hidden");
 
-  <main>
-    <!-- Add Board Form -->
-    <section class="bg-white shadow-md rounded-lg p-4 mb-6">
-      <h2 class="text-xl font-semibold mb-4">Add New Board</h2>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input id="technician" type="text" placeholder="Technician" class="p-2 border rounded">
-        <input id="boardName" type="text" placeholder="Board Name" class="p-2 border rounded">
-        <input id="quantity" type="number" value="1" min="1" class="p-2 border rounded">
-        <input id="comments" type="text" placeholder="Comments" class="p-2 border rounded">
-      </div>
-      <button id="addBoardButton" class="mt-4 w-full bg-green-600 text-white py-2 rounded">Add Board(s)</button>
-    </section>
-
-    <!-- Boards Table -->
-    <section class="bg-white shadow-md rounded-lg p-4">
-      <h2 class="text-xl font-semibold mb-4">Boards Produced</h2>
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-4 py-2 text-left">Serial</th>
-            <th class="px-4 py-2 text-left">Board</th>
-            <th class="px-4 py-2 text-left">Date</th>
-            <th class="px-4 py-2 text-left">Technician</th>
-            <th class="px-4 py-2 text-left">Comments</th>
-          </tr>
-        </thead>
-        <tbody id="boardsTable" class="divide-y divide-gray-200"></tbody>
-      </table>
-      <div id="loading" class="text-center p-4 text-gray-500">Loading…</div>
-    </section>
-  </main>
-</div>
-
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-  import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-  // 🔹 Replace with your Firebase config
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "1234567890",
-    appId: "1:1234567890:web:abcdef"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  const ui = {
-    loginBtn: document.getElementById("loginButton"),
-    logoutBtn: document.getElementById("logoutButton"),
-    userInfo: document.getElementById("user-info"),
-    addBtn: document.getElementById("addBoardButton"),
-    boardsTable: document.getElementById("boardsTable"),
-    loading: document.getElementById("loading"),
-    technician: document.getElementById("technician"),
-    boardName: document.getElementById("boardName"),
-    quantity: document.getElementById("quantity"),
-    comments: document.getElementById("comments")
-  };
-
-  const appId = "default-board-tracker";
-  const boardsCollection = collection(db, "artifacts", appId, "boards");
-
-  // 🔹 Auth state
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      ui.userInfo.textContent = `Connected | ${user.email}`;
-      ui.loginBtn.classList.add("hidden");
-      ui.logoutBtn.classList.remove("hidden");
-      listenBoards();
-    } else {
-      ui.userInfo.textContent = "Not signed in";
-      ui.loginBtn.classList.remove("hidden");
-      ui.logoutBtn.classList.add("hidden");
-      ui.boardsTable.innerHTML = "";
-      ui.loading.textContent = "Please sign in to view boards";
-    }
-  });
-
-  // 🔹 Login / Logout
-  ui.loginBtn.addEventListener("click", async () => {
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (err) {
-      console.error("Login failed", err);
-    }
-  });
-  ui.logoutBtn.addEventListener("click", () => signOut(auth));
+      // Quick test read
+      onSnapshot(boardsCollection, (snapshot) => {
+        ui.unauthorized.classList.add("hidden");
+        ui.addSection.classList.remove("hidden");
+        ui.tableSection.classList.remove("hidden");
 
-  // 🔹 Add Boards
-  ui.addBtn.addEventListener("click", async () => {
-    const tech = ui.technician.value.trim();
-    const name = ui.boardName.value.trim();
-    let qty = parseInt(ui.quantity.value, 10);
-    const comm = ui.comments.value.trim() || "N/A";
-
-    if (!tech || !name || isNaN(qty) || qty < 1) {
-      alert("Fill in technician, board name, and valid quantity");
-      return;
-    }
-
-    for (let i = 0; i < qty; i++) {
-      const doc = {
-        serialNumber: `SN-${Date.now()}-${i+1}`,
-        boardName: name,
-        technician: tech,
-        comments: comm,
-        createdAt: serverTimestamp()
-      };
-      try {
-        await addDoc(boardsCollection, doc);
-      } catch (e) {
-        alert("Error adding board: " + e.message);
-      }
-    }
-
-    ui.technician.value = "";
-    ui.boardName.value = "";
-    ui.quantity.value = "1";
-    ui.comments.value = "";
-  });
-
-  // 🔹 Live listener
-  function listenBoards() {
-    onSnapshot(boardsCollection, (snapshot) => {
-      ui.loading.classList.add("hidden");
-      ui.boardsTable.innerHTML = "";
-      snapshot.forEach((doc) => {
-        const b = doc.data();
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td class="px-4 py-2">${b.serialNumber}</td>
-          <td class="px-4 py-2">${b.boardName}</td>
-          <td class="px-4 py-2">${b.createdAt?.toDate().toLocaleDateString() ?? "-"}</td>
-          <td class="px-4 py-2">${b.technician}</td>
-          <td class="px-4 py-2">${b.comments}</td>
-        `;
-        ui.boardsTable.appendChild(row);
+        allBoards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        render();
+      }, (err) => {
+        console.warn("Snapshot error:", err.message);
+        if (err.code === "permission-denied") {
+          ui.unauthorized.classList.remove("hidden");
+        }
       });
-    });
+
+    } catch (e) {
+      console.error("Error listening:", e);
+      ui.unauthorized.classList.remove("hidden");
+    }
+
+  } else {
+    ui.userInfo.textContent = "Not signed in";
+    ui.loginBtn.classList.remove("hidden");
+    ui.logoutBtn.classList.add("hidden");
+    ui.addSection.classList.add("hidden");
+    ui.tableSection.classList.add("hidden");
   }
-</script>
-</body>
-</html>
+});
