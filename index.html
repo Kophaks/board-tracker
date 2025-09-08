@@ -196,7 +196,25 @@
             } else if (initialAuthToken) {
                 signInWithCustomToken(auth, initialAuthToken).catch(err => console.error("Custom token sign-in failed:", err));
             } else {
-                signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
+                import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } 
+                  from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+                const provider = new GoogleAuthProvider();
+
+                const handleAuthentication = () => {
+                onAuthStateChanged(auth, user => {
+                if (user) {
+                  userId = user.uid;
+                  ui.userInfo.textContent = `Connected | ${user.email}`;
+                  setupRealtimeListener();
+                } else {
+                    
+      // Prompt Google login
+      signInWithPopup(auth, provider)
+        .catch(err => console.error("Google sign-in failed:", err));
+    }
+  });
+};
             }
         });
     };
