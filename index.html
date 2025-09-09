@@ -210,50 +210,52 @@
 
   // 🔹 Add Boards
   ui.addBtn.addEventListener("click", async () => {
-    const tech = ui.technician.value.trim();
-    const name = ui.boardName.value.trim();
-    let qty = parseInt(ui.quantity.value, 10);
-    const comm = ui.comments.value.trim() || "N/A";
+  const tech = ui.technician.value.trim();
+  const name = ui.boardName.value.trim();
+  let qty = parseInt(ui.quantity.value, 10);
+  const comm = ui.comments.value.trim() || "N/A";
 
-    if (!tech || !name || isNaN(qty) || qty < 1) {
-      alert("Please fill in Technician, Board Name, and valid Quantity");
-      return;
+  if (!tech || !name || isNaN(qty) || qty < 1) {
+    alert("Please fill in Technician, Board Name, and valid Quantity");
+    return;
+  }
+
+  // ✅ Use custom date if provided
+  const selectedDate = ui.dateInput.value ? new Date(ui.dateInput.value) : new Date();
+  const year = String(selectedDate.getFullYear()).slice(-2);
+  const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+  const day = String(selectedDate.getDate()).padStart(2, "0");
+  const datePart = `${year}${month}${day}`;
+  const creationDateString = `${selectedDate.getFullYear()}-${month}-${day}`;
+  const boardNumberPart = (name.match(/^\d{3}/) || ["000"])[0];
+
+  for (let i = 0; i < qty; i++) {
+    const autonumberPart = String(i + 1).padStart(3, "0");
+    const serialNumber = `SN-${datePart}-${boardNumberPart}-${autonumberPart}`;
+
+    const docData = {
+      serialNumber,
+      boardName: name,
+      technician: tech,
+      comments: comm,
+      createdAt: serverTimestamp(),  // real log timestamp
+      creationDate: creationDateString  // custom or today
+    };
+
+    try {
+      await addDoc(boardsCollection, docData);
+    } catch (e) {
+      alert("Error adding board: " + e.message);
     }
+  }
 
-    const selectedDate = ui.dateInput.value ? new Date(ui.dateInput.value) : new Date();
-    const year = String(selectedDate.getFullYear()).slice(-2);
-    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-    const day = String(selectedDate.getDate()).padStart(2, "0");
-    const datePart = `${year}${month}${day}`;
-    const creationDateString = `${selectedDate.getFullYear()}-${month}-${day}`;
-    const boardNumberPart = (name.match(/^\d{3}/) || ["000"])[0];
-
-    for (let i = 0; i < qty; i++) {
-      const autonumberPart = String(i + 1).padStart(3, "0");
-      const serialNumber = `SN-${datePart}-${boardNumberPart}-${autonumberPart}`;
-
-      const docData = {
-        serialNumber,
-        boardName: name,
-        technician: tech,
-        comments: comm,
-        createdAt: serverTimestamp(),
-        creationDate: creationDateString
-      };
-
-      try {
-        await addDoc(boardsCollection, docData);
-      } catch (e) {
-        alert("Error adding board: " + e.message);
-      }
-    }
-
-    ui.technician.value = "";
-    ui.boardName.value = "";
-    ui.comments.value = "";
-    ui.quantity.value = "1";
-    ui.dateInput.value = "";
-  });
+  // Reset form
+  ui.technician.value = "";
+  ui.boardName.value = "";
+  ui.comments.value = "";
+  ui.quantity.value = "1";
+  ui.dateInput.value = "";
+});
 
   // 🔹 Listen boards
   function listenBoards() {
