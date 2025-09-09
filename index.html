@@ -222,32 +222,29 @@
 
   // ✅ Use custom date if provided
   const selectedDate = ui.dateInput.value ? new Date(ui.dateInput.value) : new Date();
-  const year = String(selectedDate.getFullYear()).slice(-2);
-  const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-  const day = String(selectedDate.getDate()).padStart(2, "0");
-  const datePart = `${year}${month}${day}`;
-  const creationDateString = `${selectedDate.getFullYear()}-${month}-${day}`;
-  const boardNumberPart = (name.match(/^\d{3}/) || ["000"])[0];
+const year = String(selectedDate.getFullYear()).slice(-2);
+const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+const day = String(selectedDate.getDate()).padStart(2, "0");
+const datePart = `${year}${month}${day}`;
+const creationDateString = `${selectedDate.getFullYear()}-${month}-${day}`;
+const boardNumberPart = (name.match(/^\d{3}/) || ["000"])[0];
 
-  for (let i = 0; i < qty; i++) {
-    const autonumberPart = String(i + 1).padStart(3, "0");
-    const serialNumber = `SN-${datePart}-${boardNumberPart}-${autonumberPart}`;
+for (let i = 0; i < qty; i++) {
+  const autonumberPart = String(i + 1).padStart(3, "0");
+  const serialNumber = `SN-${datePart}-${boardNumberPart}-${autonumberPart}`;
 
-    const docData = {
-      serialNumber,
-      boardName: name,
-      technician: tech,
-      comments: comm,
-      createdAt: serverTimestamp(),  // real log timestamp
-      creationDate: creationDateString  // custom or today
-    };
+  const docData = {
+    serialNumber,
+    boardName: name,
+    technician: tech,
+    comments: comm,
+    creationDate: creationDateString, // 📌 shown in UI
+    entryDate: serverTimestamp()      // 📌 audit log
+  };
 
-    try {
-      await addDoc(boardsCollection, docData);
-    } catch (e) {
-      alert("Error adding board: " + e.message);
-    }
-  }
+  await addDoc(boardsCollection, docData);
+}
+
 
   // Reset form
   ui.technician.value = "";
