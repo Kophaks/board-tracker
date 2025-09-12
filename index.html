@@ -1,181 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Board Production Tracker</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Circuit Board Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f3f4f6;
-    }
-    .table-container {
-      max-height: 60vh;
-      overflow-y: auto;
-    }
-    th {
-      position: sticky;
-      top: 0;
-      background-color: #f9fafb;
-      z-index: 10;
-    }
-    #commentsModal, #bulkEditModal, #historyModal {
-      z-index: 100;
-    }
-    .comment-click {
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    .comment-click:hover {
-      background-color: #e0f2fe;
-    }
-    #toolsDropdown {
-      z-index: 50;
-    }
+    body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+    th { position: sticky; top: 0; background-color: #f9fafb; z-index: 10; }
+    .sort-icon { opacity: 0.5; transition: opacity 0.2s; }
+    th:hover .sort-icon { opacity: 1; }
+    #editModal, #historyModal, #bulkEditModal { z-index: 50; }
   </style>
 </head>
 <body class="antialiased text-gray-800">
-  <div id="app" class="container mx-auto p-4 md:p-8">
-    <header class="flex justify-between items-center mb-8">
+
+<div id="app" class="container mx-auto p-4 md:p-8">
+  <!-- HEADER -->
+  <header class="flex justify-between items-center mb-8">
+    <div>
+      <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Board Production Tracker</h1>
+      <p class="text-slate-600 mt-2">Collaborative tool to manage your team's circuit board production.</p>
+      <div id="user-info" class="text-xs text-slate-400 mt-2 font-mono">Connecting...</div>
+    </div>
+    <div class="flex gap-2">
+      <button id="exportToggleButton" class="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300">☰ Tools</button>
+      <button id="loginButton" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Sign In</button>
+      <button id="logoutButton" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 hidden">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- Unauthorized -->
+  <div id="unauthorized" class="hidden text-center text-red-600 font-semibold mb-6">
+    🚫 You are not authorized to access this app. Please contact the administrator.
+  </div>
+
+  <!-- ADD BOARD -->
+  <section id="add-board-section" class="bg-white p-6 rounded-xl shadow-lg mb-8 hidden">
+    <h2 class="text-2xl font-semibold mb-4 text-slate-800">Add New Board(s)</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
       <div>
-        <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Board Production Tracker</h1>
-        <p class="text-slate-600 mt-2">
-          A real-time collaborative tool to manage your team's circuit board production.
-        </p>
-        <div id="user-info" class="text-xs text-slate-400 mt-4 font-mono">Connecting...</div>
-        <div id="unauthorized" class="hidden text-red-600 font-semibold mt-2">Not authorized</div>
+        <label for="technician" class="block text-sm font-medium text-slate-700 mb-1">Technician</label>
+        <input type="text" id="technician" class="w-full p-2 border border-slate-300 rounded-lg"/>
       </div>
-      <div class="flex gap-2">
-        <button id="loginButton" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Sign in</button>
-        <button id="logoutButton" class="px-4 py-2 bg-gray-600 text-white rounded-lg hidden">Sign out</button>
+      <div>
+        <label for="boardName" class="block text-sm font-medium text-slate-700 mb-1">Board Name</label>
+        <input type="text" id="boardName" class="w-full p-2 border border-slate-300 rounded-lg"/>
       </div>
-    </header>
-
-    <main>
-      <!-- Add Board Section -->
-      <section id="add-board-section" class="bg-white p-6 rounded-xl shadow-lg mb-8 hidden">
-        <h2 class="text-2xl font-semibold mb-4 text-slate-800">Add New Board</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
-          <div>
-            <label for="technician" class="block text-sm font-medium text-slate-700 mb-1">Technician</label>
-            <input id="technician" class="w-full p-2 border border-slate-300 rounded-lg" />
-          </div>
-          <div>
-            <label for="boardName" class="block text-sm font-medium text-slate-700 mb-1">Board Name</label>
-            <input id="boardName" class="w-full p-2 border border-slate-300 rounded-lg" />
-          </div>
-          <div>
-            <label for="quantity" class="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
-            <input id="quantity" type="number" value="1" class="w-full p-2 border border-slate-300 rounded-lg" />
-          </div>
-          <div>
-            <label for="dateInput" class="block text-sm font-medium text-slate-700 mb-1">Date (optional)</label>
-            <input id="dateInput" type="date" class="w-full p-2 border border-slate-300 rounded-lg" />
-          </div>
-          <div class="lg:col-span-2">
-            <label for="comments" class="block text-sm font-medium text-slate-700 mb-1">Comments</label>
-            <input id="comments" class="w-full p-2 border border-slate-300 rounded-lg" />
-          </div>
-          <div class="col-span-1 md:col-span-2 lg:col-span-6">
-            <button id="addBoardButton" class="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
-              Add Board(s)
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Boards Table -->
-      <section id="display-section" class="bg-white p-6 rounded-xl shadow-lg hidden">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-semibold text-slate-800">Boards Produced</h2>
-          <div class="relative">
-            <button id="toolsButton" class="px-3 py-2 bg-slate-200 rounded hover:bg-slate-300">Tools ▾</button>
-            <div id="toolsDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white shadow-lg rounded border">
-              <button id="tool-export" class="block w-full text-left px-4 py-2 hover:bg-slate-100">Export CSV</button>
-              <button id="tool-bulk-edit" class="block w-full text-left px-4 py-2 hover:bg-slate-100">Bulk Edit Comments</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Search and filters -->
-        <div class="mb-4 flex items-center gap-4">
-          <input
-            type="text"
-            id="searchInput"
-            placeholder="Search by serial, name, technician, or date..."
-            class="w-full p-2 border border-slate-300 rounded-lg"
-          />
-          <label class="flex items-center text-sm gap-1">
-            <input type="checkbox" id="regexMode" /> Regex
-          </label>
-          <button id="toggleFilters" class="px-3 py-2 bg-slate-200 rounded hover:bg-slate-300">Advanced ▾</button>
-        </div>
-
-        <!-- Advanced filters -->
-        <div id="advancedFilters" class="hidden mb-4 p-4 bg-slate-50 rounded-lg border space-y-2">
-          <div>
-            <label for="technicianFilter" class="text-sm font-medium">Technician:</label>
-            <input id="technicianFilter" class="p-2 border rounded w-full"/>
-          </div>
-          <div class="flex gap-4">
-            <div>
-              <label for="fromDate" class="text-sm font-medium">From:</label>
-              <input id="fromDate" type="date" class="p-2 border rounded"/>
-            </div>
-            <div>
-              <label for="toDate" class="text-sm font-medium">To:</label>
-              <input id="toDate" type="date" class="p-2 border rounded"/>
-            </div>
-          </div>
-        </div>
-
-        <div class="table-container border border-slate-200 rounded-lg">
-          <table class="min-w-full divide-y divide-slate-200">
-            <thead class="bg-slate-50">
-              <tr>
-                <th class="px-4 py-3 text-center w-10">
-                  <input type="checkbox" id="selectAll" />
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Serial</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Board Name</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Technician</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Comments</th>
-              </tr>
-            </thead>
-            <tbody id="boardsTableBody" class="bg-white divide-y divide-slate-200"></tbody>
-          </table>
-          <div id="loading" class="text-center p-6 text-slate-500">Loading data...</div>
-          <div id="no-results" class="hidden text-center p-6 text-slate-500">No boards found.</div>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <!-- Comments Viewer Modal -->
-  <div id="commentsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex justify-center items-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-semibold text-slate-800">Full Comments</h3>
-        <button id="closeCommentsModal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+      <div>
+        <label for="quantity" class="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
+        <input type="number" id="quantity" value="1" min="1" class="w-full p-2 border border-slate-300 rounded-lg"/>
       </div>
-      <pre id="commentsContent" class="whitespace-pre-wrap text-slate-700"></pre>
-    </div>
-  </div>
-
-  <!-- Bulk Edit Modal -->
-  <div id="bulkEditModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex justify-center items-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
-      <h3 class="text-xl font-semibold mb-4">Bulk Edit Comments</h3>
-      <textarea id="bulkComments" rows="5" class="w-full p-2 border rounded"></textarea>
-      <div class="flex justify-end gap-2 mt-4">
-        <button id="applyBulkButton" class="px-4 py-2 bg-green-600 text-white rounded">Apply</button>
-        <button id="closeBulkModal" class="px-4 py-2 bg-gray-300 rounded">Cancel</button>
+      <div>
+        <label for="dateInput" class="block text-sm font-medium text-slate-700 mb-1">Date (optional)</label>
+        <input type="date" id="dateInput" class="w-full p-2 border border-slate-300 rounded-lg"/>
+      </div>
+      <div>
+        <label for="comments" class="block text-sm font-medium text-slate-700 mb-1">Initial Comments</label>
+        <input type="text" id="comments" placeholder="(Optional)" class="w-full p-2 border border-slate-300 rounded-lg"/>
+      </div>
+      <div class="lg:col-span-5">
+        <button id="addBoardButton" class="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-md">Add Board(s)</button>
       </div>
     </div>
-  </div>
+  </section>
 
-  <script type="module" src="app.js"></script>
+  <!-- TABLE + SEARCH -->
+  <section id="display-section" class="bg-white p-6 rounded-xl shadow-lg hidden">
+    <h2 class="text-2xl font-semibold mb-4 text-slate-800">Boards Produced</h2>
+    <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div class="flex flex-1 gap-2">
+        <input type="text" id="searchInput" placeholder="Search..." class="flex-1 p-2 border border-slate-300 rounded-lg"/>
+        <label class="flex items-center gap-1 text-sm">
+          <input type="checkbox" id="regexMode" class="mr-1"/> Regex
+        </label>
+      </div>
+      <button id="toggleFilters" class="px-3 py-2 bg-slate-200 rounded-lg hover:bg-slate-300">Advanced Filters</button>
+    </div>
+    <div id="advancedFilters" class="hidden mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+      <select id="technicianFilter" class="p-2 border rounded-lg">
+        <option value="">All Technicians</option>
+      </select>
+      <input type="date" id="fromDate" class="p-2 border rounded-lg"/>
+      <input type="date" id="toDate" class="p-2 border rounded-lg"/>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-4 py-3">
+              <input type="checkbox" id="selectAll"/>
+            </th>
+            <th data-sort-by="serialNumber" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase cursor-pointer">
+              <div class="flex items-center">Serial<span class="sort-icon ml-1.5">↕</span></div>
+            </th>
+            <th data-sort-by="boardName" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase cursor-pointer">
+              <div class="flex items-center">Board<span class="sort-icon ml-1.5">↕</span></div>
+            </th>
+            <th data-sort-by="creationDate" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase cursor-pointer">
+              <div class="flex items-center">Date<span class="sort-icon ml-1.5">↕</span></div>
+            </th>
+            <th data-sort-by="technician" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase cursor-pointer">
+              <div class="flex items-center">Technician<span class="sort-icon ml-1.5">↕</span></div>
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Comments</th>
+          </tr>
+        </thead>
+        <tbody id="boardsTableBody" class="bg-white divide-y divide-slate-200"></tbody>
+      </table>
+    </div>
+    <div id="loading" class="text-center p-6 text-slate-500">Loading…</div>
+    <div id="no-results" class="hidden text-center p-6 text-slate-500">No boards found.</div>
+  </section>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex justify-center items-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-semibold text-slate-800">Edit Comments</h3>
+      <button id="closeModalButton" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+    </div>
+    <input type="text" id="modalSerialNumber" readonly class="w-full p-2 bg-slate-100 text-slate-500 rounded-md mb-4"/>
+    <textarea id="modalComments" rows="5" class="w-full p-2 border border-slate-300 rounded-lg mb-4"></textarea>
+    <div class="flex justify-end gap-3">
+      <button id="cancelCommentsButton" class="px-4 py-2 bg-slate-200 rounded-lg">Cancel</button>
+      <button id="saveCommentsButton" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Edit Modal -->
+<div id="bulkEditModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex justify-center items-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-semibold text-slate-800">Bulk Edit Comments</h3>
+      <button id="closeBulkModal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+    </div>
+    <textarea id="bulkComments" rows="5" placeholder="Enter new comment text..." class="w-full p-2 border border-slate-300 rounded-lg mb-4"></textarea>
+    <div class="flex items-center gap-2 mb-4">
+      <label><input type="radio" name="bulkMode" value="append" checked/> Append</label>
+      <label><input type="radio" name="bulkMode" value="overwrite"/> Overwrite</label>
+    </div>
+    <div class="flex justify-end gap-3">
+      <button id="cancelBulkButton" class="px-4 py-2 bg-slate-200 rounded-lg">Cancel</button>
+      <button id="applyBulkButton" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- History Modal -->
+<div id="historyModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex justify-center items-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-semibold text-slate-800">Activity Log</h3>
+      <button id="closeHistoryButton" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+    </div>
+    <ul id="historyList" class="list-disc pl-6 text-slate-700"></ul>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
 </body>
 </html>
