@@ -38,12 +38,19 @@ import {
    =========================== */
 const firebaseConfig = {
   apiKey: "AIzaSyBAdB_xUyeThPH43D2qwzi0L5gmc8pdh5c",
+
   authDomain: "board-tracker-646a3.firebaseapp.com",
+
   projectId: "board-tracker-646a3",
+
   storageBucket: "board-tracker-646a3.firebasestorage.app",
+
   messagingSenderId: "74798840513",
+
   appId: "1:74798840513:web:c8b316f181b7e7e87ff240",
+
   measurementId: "G-BKJVPNXMME"
+
 };
 /* ===========================
    End config
