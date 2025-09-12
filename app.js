@@ -32,6 +32,7 @@ import {
   getDocs,
   query,
   orderBy,
+  where,
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 /* ===========================
@@ -256,11 +257,22 @@ ui.addBtn.addEventListener("click", async () => {
   // determine board number part like before
   const boardNumberPart = (name.match(/^\d{3}/) || ["000"])[0];
 
-  // when creating multiple, autonumber part needs to reflect existing same-day boards to avoid collisions.
-  // For simplicity we'll append increasing numbers starting at 1 for the quantity (won't check DB for existing).
-  // If you want guaranteed unique incremental numbers across DB, we'd need to query existing docs and compute last number.
+  // Query existing entries for this boardName and creationDate
+  const q = query(boardsCollection, where("boardName", "==", name), where("creationDate", "==", creationDateString));
+  const snapshot = await getDocs(q);
+  let maxNumber = 0;
+  snapshot.forEach(doc => {
+    const serial = doc.data().serialNumber || "";
+    const match = serial.match(/-(\d{3})$/); // Match the last 3-digit number
+    if (match) {
+      const num = parseInt(match[1], 10);
+      maxNumber = Math.max(maxNumber, num);
+    }
+  });
+
+  // Generate serial numbers starting after the highest existing number
   for (let i = 0; i < qty; i++) {
-    const autonumberPart = String(i + 1).padStart(3, "0");
+    const autonumberPart = String(maxNumber + i + 1).padStart(3, "0");
     const serialNumber = `SN-${String(y).slice(-2)}${m}${d}-${boardNumberPart}-${autonumberPart}`;
 
     const payload = {
