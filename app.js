@@ -6,6 +6,7 @@
  *  - index.html must include:
  *    - elements and IDs used below (see the last index.html you received)
  *    - <script type="module" src="app.js"></script>
+ *    - Tailwind CSS via CDN (e.g., <script src="https://cdn.tailwindcss.com"></script>)
  *
  * Replace firebaseConfig with your actual project values.
  */
@@ -257,7 +258,7 @@ ui.addBtn.addEventListener("click", async () => {
 
   // when creating multiple, autonumber part needs to reflect existing same-day boards to avoid collisions.
   // For simplicity we'll append increasing numbers starting at 1 for the quantity (won't check DB for existing).
-  // If you want guaranteed unique incremental numbers across DB, we'd
+  // If you want guaranteed unique incremental numbers across DB, we'd need to query existing docs and compute last number.
   for (let i = 0; i < qty; i++) {
     const autonumberPart = String(i + 1).padStart(3, "0");
     const serialNumber = `SN-${String(y).slice(-2)}${m}${d}-${boardNumberPart}-${autonumberPart}`;
@@ -448,18 +449,38 @@ function openCommentModal(fullComments) {
 
   commentModal = document.createElement("div");
   commentModal.className = "fixed inset-0 bg-gray-600 bg-opacity-30 flex items-center justify-center z-50";
-  commentModal.innerHTML = `
-    <div class="bg-white p-6 rounded-lg shadow-lg w-96">
-      <div class="flex justify-between items-center border-b pb-2 mb-4">
-        <h2 class="text-xl font-semibold text-gray-900">Comment Preview</h2>
-        <button id="closeCommentModal" class="text-gray-500 hover:text-gray-700">&times;</button>
-      </div>
-      <div class="text-sm text-gray-700 mb-4 whitespace-pre-wrap">${escapeHtml(fullComments)}</div>
-      <div class="flex justify-end">
-        <button id="okCommentModal" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">OK</button>
-      </div>
-    </div>
-  `;
+
+  const modalContent = document.createElement("div");
+  modalContent.className = "bg-white p-6 rounded-lg shadow-lg w-96";
+
+  const header = document.createElement("div");
+  header.className = "flex justify-between items-center border-b pb-2 mb-4";
+  const title = document.createElement("h2");
+  title.className = "text-xl font-semibold text-gray-900";
+  title.textContent = "Comment Preview";
+  const closeBtn = document.createElement("button");
+  closeBtn.id = "closeCommentModal";
+  closeBtn.className = "text-gray-500 hover:text-gray-700";
+  closeBtn.textContent = "×";
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+
+  const content = document.createElement("div");
+  content.className = "text-sm text-gray-700 mb-4 whitespace-pre-wrap";
+  content.textContent = escapeHtml(fullComments);
+
+  const footer = document.createElement("div");
+  footer.className = "flex justify-end";
+  const okBtn = document.createElement("button");
+  okBtn.id = "okCommentModal";
+  okBtn.className = "bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600";
+  okBtn.textContent = "OK";
+  footer.appendChild(okBtn);
+
+  modalContent.appendChild(header);
+  modalContent.appendChild(content);
+  modalContent.appendChild(footer);
+  commentModal.appendChild(modalContent);
 
   document.body.appendChild(commentModal);
 
@@ -522,7 +543,7 @@ ui.saveCommentsButton.addEventListener("click", async () => {
     if (e.code === "permission-denied") alert("Permission denied: cannot update comments / history. Check rules.");
     else alert("Error updating comments: " + (e.message || e));
   }
-}
+});
 
 /* ===========================
    Bulk Edit (apply to selected rows)
