@@ -332,7 +332,7 @@ function render() {
   }
   const techFilter = ui.technicianFilter.value || "";
   const from = ui.fromDate.value || "";
-  to: const to = ui.toDate.value || "";
+  const to = ui.toDate.value || "";  // <-- Fixed: Removed the invalid "to:" label
 
   // filter
   let filtered = allBoards.filter(b => {
