@@ -257,7 +257,7 @@ ui.addBtn.addEventListener("click", async () => {
 
   // when creating multiple, autonumber part needs to reflect existing same-day boards to avoid collisions.
   // For simplicity we'll append increasing numbers starting at 1 for the quantity (won't check DB for existing).
-  // If you want guaranteed unique incremental numbers across DB, we'd need to query existing docs and compute last number.
+  // If you want guaranteed unique incremental numbers across DB, we'd
   for (let i = 0; i < qty; i++) {
     const autonumberPart = String(i + 1).padStart(3, "0");
     const serialNumber = `SN-${String(y).slice(-2)}${m}${d}-${boardNumberPart}-${autonumberPart}`;
