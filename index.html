@@ -20,6 +20,19 @@
       background-color: #f9fafb;
       z-index: 10;
     }
+    #commentsModal, #bulkEditModal, #historyModal {
+      z-index: 100;
+    }
+    .comment-click {
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .comment-click:hover {
+      background-color: #e0f2fe;
+    }
+    #toolsDropdown {
+      z-index: 50;
+    }
   </style>
 </head>
 <body class="antialiased text-gray-800">
@@ -74,7 +87,18 @@
 
       <!-- Boards Table -->
       <section id="display-section" class="bg-white p-6 rounded-xl shadow-lg hidden">
-        <h2 class="text-2xl font-semibold mb-4 text-slate-800">Boards Produced</h2>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-semibold text-slate-800">Boards Produced</h2>
+          <div class="relative">
+            <button id="toolsButton" class="px-3 py-2 bg-slate-200 rounded hover:bg-slate-300">Tools ▾</button>
+            <div id="toolsDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white shadow-lg rounded border">
+              <button id="tool-export" class="block w-full text-left px-4 py-2 hover:bg-slate-100">Export CSV</button>
+              <button id="tool-bulk-edit" class="block w-full text-left px-4 py-2 hover:bg-slate-100">Bulk Edit Comments</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search and filters -->
         <div class="mb-4 flex items-center gap-4">
           <input
             type="text"
@@ -85,7 +109,27 @@
           <label class="flex items-center text-sm gap-1">
             <input type="checkbox" id="regexMode" /> Regex
           </label>
+          <button id="toggleFilters" class="px-3 py-2 bg-slate-200 rounded hover:bg-slate-300">Advanced ▾</button>
         </div>
+
+        <!-- Advanced filters -->
+        <div id="advancedFilters" class="hidden mb-4 p-4 bg-slate-50 rounded-lg border space-y-2">
+          <div>
+            <label for="technicianFilter" class="text-sm font-medium">Technician:</label>
+            <input id="technicianFilter" class="p-2 border rounded w-full"/>
+          </div>
+          <div class="flex gap-4">
+            <div>
+              <label for="fromDate" class="text-sm font-medium">From:</label>
+              <input id="fromDate" type="date" class="p-2 border rounded"/>
+            </div>
+            <div>
+              <label for="toDate" class="text-sm font-medium">To:</label>
+              <input id="toDate" type="date" class="p-2 border rounded"/>
+            </div>
+          </div>
+        </div>
+
         <div class="table-container border border-slate-200 rounded-lg">
           <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
@@ -117,6 +161,18 @@
         <button id="closeCommentsModal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
       </div>
       <pre id="commentsContent" class="whitespace-pre-wrap text-slate-700"></pre>
+    </div>
+  </div>
+
+  <!-- Bulk Edit Modal -->
+  <div id="bulkEditModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex justify-center items-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+      <h3 class="text-xl font-semibold mb-4">Bulk Edit Comments</h3>
+      <textarea id="bulkComments" rows="5" class="w-full p-2 border rounded"></textarea>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="applyBulkButton" class="px-4 py-2 bg-green-600 text-white rounded">Apply</button>
+        <button id="closeBulkModal" class="px-4 py-2 bg-gray-300 rounded">Cancel</button>
+      </div>
     </div>
   </div>
 
