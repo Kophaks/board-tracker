@@ -455,14 +455,14 @@ function openCommentModal(fullComments) {
   }
 
   commentModal = document.createElement("div");
-  commentModal.className = "fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50";
+  commentModal.className = "fixed inset-0 bg-gray-600 bg-opacity-30 flex items-center justify-center z-50";
   commentModal.innerHTML = `
     <div class="bg-white p-6 rounded-lg shadow-lg w-96">
       <div class="flex justify-between items-center border-b pb-2 mb-4">
         <h2 class="text-xl font-semibold text-gray-900">Comment Preview</h2>
         <button id="closeCommentModal" class="text-gray-500 hover:text-gray-700">&times;</button>
       </div>
-      <div class="text-sm text-gray-700 mb-4">${escapeHtml(fullComments)}</div>
+      <div class="text-sm text-gray-700 mb-4 whitespace-pre-wrap">${escapeHtml(fullComments)}</div>
       <div class="flex justify-end">
         <button id="okCommentModal" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">OK</button>
       </div>
@@ -483,196 +483,6 @@ function closeCommentModal() {
 }
 
 /* ===========================
-   Select-all header logic & Tools menu actions
-   =========================== */
-
-// header checkbox basic behavior: toggles selecting visible rows
-ui.selectAllHeader.addEventListener("click", (e) => {
-  // default action: if header currently unchecked -> select visible rows
-  const header = ui.selectAllHeader;
-  // But we'll provide Tools menu for other modes; here basic toggle:
-  const visibleCheckboxes = Array.from(document.querySelectorAll(".row-select"));
-  const anyUnchecked = visibleCheckboxes.some(cb => !cb.checked);
-  if (anyUnchecked) {
-    // select all visible
-    visibleCheckboxes.forEach(cb => {
-      cb.checked = true;
-      selectedIds.add(cb.getAttribute("data-id"));
-    });
-  } else {
-    // clear visible selection
-    visibleCheckboxes.forEach(cb => {
-      cb.checked = false;
-      selectedIds.delete(cb.getAttribute("data-id"));
-    });
-  }
-  updateSelectAllHeaderState();
-});
-
-function updateSelectAllHeaderState(filteredList) {
-  // Determine header checkbox state:
-  // If no rows are shown, uncheck.
-  const visibleCheckboxes = Array.from(document.querySelectorAll(".row-select"));
-  if (visibleCheckboxes.length === 0) {
-    ui.selectAllHeader.checked = false;
-    ui.selectAllHeader.indeterminate = false;
-    return;
-  }
-  const checkedCount = visibleCheckboxes.filter(cb => cb.checked).length;
-  if (checkedCount === 0) {
-    ui.selectAllHeader.checked = false;
-    ui.selectAllHeader.indeterminate = false;
-  } else if (checkedCount === visibleCheckboxes.length) {
-    ui.selectAllHeader.checked = true;
-    ui.selectAllHeader.indeterminate = false;
-  } else {
-    ui.selectAllHeader.checked = false;
-    ui.selectAllHeader.indeterminate = true;
-  }
-}
-
-/* Tools menu: we'll build a small popup anchored to exportToggleButton
-   It provides: Select Visible, Select All, Clear Selection, Export CSV, Bulk Edit
-*/
-let toolsPopup = null;
-ui.exportToggleButton.addEventListener("click", (e) => {
-  if (toolsPopup) {
-    toolsPopup.remove();
-    toolsPopup = null;
-    return;
-  }
-  toolsPopup = document.createElement("div");
-  toolsPopup.className = "absolute right-6 top-16 bg-white p-3 rounded shadow-lg w-60 text-sm z-50";
-  toolsPopup.innerHTML = `
-    <button id="tool-select-visible" class="w-full text-left px-2 py-2 hover:bg-slate-100">Select visible</button>
-    <button id="tool-select-all" class="w-full text-left px-2 py-2 hover:bg-slate-100">Select all (entire DB)</button>
-    <button id="tool-clear-selected" class="w-full text-left px-2 py-2 hover:bg-slate-100">Clear selection</button>
-    <hr class="my-2"/>
-    <button id="tool-export-csv" class="w-full text-left px-2 py-2 hover:bg-slate-100">Export CSV (selected/filtered)</button>
-    <button id="tool-bulk-edit" class="w-full text-left px-2 py-2 hover:bg-slate-100">Bulk edit comments</button>
-  `;
-  document.body.appendChild(toolsPopup);
-
-  // handlers
-  document.getElementById("tool-select-visible").addEventListener("click", () => {
-    selectVisible();
-    closeTools();
-  });
-  document.getElementById("tool-select-all").addEventListener("click", async () => {
-    await selectAllInDB();
-    closeTools();
-  });
-  document.getElementById("tool-clear-selected").addEventListener("click", () => {
-    clearSelection();
-    closeTools();
-  });
-  document.getElementById("tool-export-csv").addEventListener("click", () => {
-    exportCSV();
-    closeTools();
-  });
-  document.getElementById("tool-bulk-edit").addEventListener("click", () => {
-    openBulkModal();
-    closeTools();
-  });
-
-  // close on outside click
-  setTimeout(() => {
-    const onDocClick = (ev) => {
-      if (!toolsPopup.contains(ev.target) && ev.target !== ui.exportToggleButton) {
-        closeTools();
-        document.removeEventListener("click", onDocClick);
-      }
-    };
-    document.addEventListener("click", onDocClick);
-  }, 0);
-});
-
-function closeTools() {
-  if (toolsPopup) { toolsPopup.remove(); toolsPopup = null; }
-}
-
-function selectVisible() {
-  selectedIds.clear();
-  document.querySelectorAll(".row-select").forEach(cb => {
-    cb.checked = true;
-    selectedIds.add(cb.getAttribute("data-id"));
-  });
-  updateSelectAllHeaderState();
-}
-
-async function selectAllInDB() {
-  // select ids for allBoards currently loaded (which may be limited by security rules)
-  selectedIds.clear();
-  allBoards.forEach(b => selectedIds.add(b.id));
-  // reflect visually on visible rows
-  document.querySelectorAll(".row-select").forEach(cb => {
-    cb.checked = selectedIds.has(cb.getAttribute("data-id"));
-  });
-  updateSelectAllHeaderState();
-}
-
-function clearSelection() {
-  selectedIds.clear();
-  document.querySelectorAll(".row-select").forEach(cb => cb.checked = false);
-  updateSelectAllHeaderState();
-}
-
-/* ===========================
-   CSV Export (offline)
-   =========================== */
-
-function exportCSV() {
-  // if selections exist -> export selected; otherwise export filtered currently shown rows
-  const exportRows = [];
-  // build array of rows currently visible in table (matches filtered dataset)
-  const visibleIds = Array.from(document.querySelectorAll(".row-select")).map(cb => cb.getAttribute("data-id"));
-  let rowsToExport = [];
-  if (selectedIds.size > 0) {
-    rowsToExport = allBoards.filter(b => selectedIds.has(b.id));
-  } else if (visibleIds.length > 0) {
-    rowsToExport = allBoards.filter(b => visibleIds.includes(b.id));
-  } else {
-    // fallback: everything loaded
-    rowsToExport = allBoards.slice();
-  }
-
-  if (rowsToExport.length === 0) {
-    alert("No rows available for export.");
-    return;
-  }
-
-  // columns: serialNumber, boardName, creationDate, technician, comments, createdBy, updatedBy, entryDate
-  const headers = ["serialNumber","boardName","creationDate","technician","comments","createdBy","updatedBy","entryDate"];
-  const lines = [headers.map(escapeCSV).join(",")];
-
-  for (const r of rowsToExport) {
-    const entryDateIso = r.entryDate && r.entryDate.toDate ? r.entryDate.toDate().toISOString() : (r.entryDate || "");
-    const row = [
-      r.serialNumber || "",
-      r.boardName || "",
-      r.creationDate || "",
-      r.technician || "",
-      r.comments || "",
-      r.createdBy || "",
-      r.updatedBy || "",
-      entryDateIso
-    ];
-    lines.push(row.map(escapeCSV).join(","));
-  }
-
-  const csv = lines.join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `boards_export_${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-/* ===========================
    Edit Single Comment flow
    =========================== */
 
@@ -682,6 +492,8 @@ function openEditModal(id) {
   ui.modalSerial.value = board.serialNumber || "";
   ui.modalComments.value = board.comments || "";
   ui.saveCommentsButton.dataset.docId = id;
+  // Ensure the textarea preserves line breaks and spacing
+  ui.modalComments.style.whiteSpace = "pre-wrap";
   showElement(ui.editModal);
 }
 ui.closeModalButton.addEventListener("click", () => hideElement(ui.editModal));
