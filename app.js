@@ -27,7 +27,7 @@ const appId = "default-board-tracker";
 const boardsCollection = collection(db, "artifacts", appId, "boards");
 
 /* ---------------------------
-   UI references
+   UI
    --------------------------- */
 const ui = {
   loginBtn: document.getElementById("loginButton"),
@@ -44,6 +44,11 @@ const ui = {
   addBtn: document.getElementById("addBoardButton"),
   searchInput: document.getElementById("searchInput"),
   regexMode: document.getElementById("regexMode"),
+  toggleFilters: document.getElementById("toggleFilters"),
+  advancedFilters: document.getElementById("advancedFilters"),
+  technicianFilter: document.getElementById("technicianFilter"),
+  fromDate: document.getElementById("fromDate"),
+  toDate: document.getElementById("toDate"),
   selectAllHeader: document.getElementById("selectAll"),
   tableBody: document.getElementById("boardsTableBody"),
   loading: document.getElementById("loading"),
@@ -51,6 +56,14 @@ const ui = {
   commentsModal: document.getElementById("commentsModal"),
   commentsContent: document.getElementById("commentsContent"),
   closeCommentsModal: document.getElementById("closeCommentsModal"),
+  toolsButton: document.getElementById("toolsButton"),
+  toolsDropdown: document.getElementById("toolsDropdown"),
+  toolExport: document.getElementById("tool-export"),
+  toolBulkEdit: document.getElementById("tool-bulk-edit"),
+  bulkEditModal: document.getElementById("bulkEditModal"),
+  bulkComments: document.getElementById("bulkComments"),
+  applyBulkButton: document.getElementById("applyBulkButton"),
+  closeBulkModal: document.getElementById("closeBulkModal"),
 };
 
 /* ---------------------------
@@ -74,6 +87,11 @@ function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, c => (
     {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
   ));
+}
+function escapeCSV(s) {
+  if (s == null) return '""';
+  const str = String(s).replace(/"/g, '""');
+  return `"${str}"`;
 }
 function showElement(el){ el && el.classList.remove("hidden"); }
 function hideElement(el){ el && el.classList.add("hidden"); }
@@ -183,7 +201,7 @@ ui.addBtn.addEventListener("click", async () => {
    --------------------------- */
 function render(){
   const qtext = ui.searchInput.value.trim();
-  const useRegex = ui.regexMode?.checked;
+  const useRegex = ui.regexMode.checked;
   let regex=null;
   if (useRegex && qtext){
     try { regex=new RegExp(qtext,"i"); }
@@ -195,6 +213,15 @@ function render(){
       const hay=[b.serialNumber,b.boardName,b.technician,b.creationDate,b.comments].join(" ");
       if(regex){ if(!regex.test(hay)) return false; }
       else if(!hay.toLowerCase().includes(qtext.toLowerCase())) return false;
+    }
+    if(ui.technicianFilter.value){
+      if(!b.technician.toLowerCase().includes(ui.technicianFilter.value.toLowerCase())) return false;
+    }
+    if(ui.fromDate.value){
+      if(b.creationDate < ui.fromDate.value) return false;
+    }
+    if(ui.toDate.value){
+      if(b.creationDate > ui.toDate.value) return false;
     }
     return true;
   });
@@ -234,13 +261,11 @@ function populateTable(boards){
   }
   ui.tableBody.appendChild(frag);
 
-  // row selection
   ui.tableBody.querySelectorAll(".row-select").forEach(cb=>cb.addEventListener("change",e=>{
     const id=e.target.dataset.id;
     if(e.target.checked) selectedIds.add(id); else selectedIds.delete(id);
   }));
 
-  // comments modal
   ui.tableBody.querySelectorAll(".comment-click").forEach(span=>
     span.addEventListener("click",()=>openCommentsModal(span.dataset.id))
   );
@@ -255,3 +280,70 @@ function openCommentsModal(id){
   showElement(ui.commentsModal);
 }
 ui.closeCommentsModal.addEventListener("click",()=>hideElement(ui.commentsModal));
+
+/* ---------------------------
+   Tools dropdown
+   --------------------------- */
+ui.toolsButton.addEventListener("click",()=>{
+  ui.toolsDropdown.classList.toggle("hidden");
+});
+
+// Export CSV
+ui.toolExport.addEventListener("click",()=>{
+  const rows = allBoards.filter(b=>selectedIds.size===0 || selectedIds.has(b.id));
+  const header=["Serial","Board Name","Date","Technician","Comments"];
+  const csv=[header.join(",")];
+  rows.forEach(b=>{
+    csv.push([
+      escapeCSV(b.serialNumber),
+      escapeCSV(b.boardName),
+      escapeCSV(formatToSlashYMD(b.creationDate)),
+      escapeCSV(b.technician),
+      escapeCSV(b.comments)
+    ].join(","));
+  });
+  const blob=new Blob([csv.join("\\n")],{type:"text/csv"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download="boards.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  ui.toolsDropdown.classList.add("hidden");
+});
+
+// Bulk edit
+ui.toolBulkEdit.addEventListener("click",()=>{
+  ui.bulkComments.value="";
+  showElement(ui.bulkEditModal);
+  ui.toolsDropdown.classList.add("hidden");
+});
+ui.closeBulkModal.addEventListener("click",()=>hideElement(ui.bulkEditModal));
+ui.applyBulkButton.addEventListener("click",async()=>{
+  const text=ui.bulkComments.value.trim();
+  if(!text) return;
+  for(const id of selectedIds){
+    const ref=doc(db,"artifacts",appId,"boards",id);
+    await updateDoc(ref,{
+      comments:text,
+      updatedBy:currentUser.email,
+      updatedAt:serverTimestamp()
+    });
+  }
+  hideElement(ui.bulkEditModal);
+});
+
+/* ---------------------------
+   Advanced filters toggle
+   --------------------------- */
+ui.toggleFilters.addEventListener("click",()=>{
+  ui.advancedFilters.classList.toggle("hidden");
+});
+
+/* ---------------------------
+   Triggers
+   --------------------------- */
+ui.searchInput.addEventListener("input",render);
+ui.regexMode.addEventListener("change",render);
+ui.technicianFilter.addEventListener("input",render);
+ui.fromDate.addEventListener("change",render);
+ui.toDate.addEventListener("change",render);
