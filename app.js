@@ -37,12 +37,20 @@ import {
    Configuration (REPLACE)
    =========================== */
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abcdef"
+  apiKey: "AIzaSyBAdB_xUyeThPH43D2qwzi0L5gmc8pdh5c",
+
+  authDomain: "board-tracker-646a3.firebaseapp.com",
+
+  projectId: "board-tracker-646a3",
+
+  storageBucket: "board-tracker-646a3.firebasestorage.app",
+
+  messagingSenderId: "74798840513",
+
+  appId: "1:74798840513:web:c8b316f181b7e7e87ff240",
+
+  measurementId: "G-BKJVPNXMME"
+
 };
 /* ===========================
    End config
