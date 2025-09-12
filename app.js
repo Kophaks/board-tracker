@@ -38,19 +38,12 @@ import {
    =========================== */
 const firebaseConfig = {
   apiKey: "AIzaSyBAdB_xUyeThPH43D2qwzi0L5gmc8pdh5c",
-
   authDomain: "board-tracker-646a3.firebaseapp.com",
-
   projectId: "board-tracker-646a3",
-
   storageBucket: "board-tracker-646a3.firebasestorage.app",
-
   messagingSenderId: "74798840513",
-
   appId: "1:74798840513:web:c8b316f181b7e7e87ff240",
-
   measurementId: "G-BKJVPNXMME"
-
 };
 /* ===========================
    End config
@@ -128,6 +121,7 @@ let currentUser = null;
 let allBoards = []; // live copy from Firestore
 let currentSort = { column: "creationDate", direction: "desc" }; // default sort
 let selectedIds = new Set(); // selected rows for export / bulk edit
+let commentModal = null; // Track the comment popup modal
 
 /* ===========================
    Helpers
@@ -332,7 +326,7 @@ function render() {
   }
   const techFilter = ui.technicianFilter.value || "";
   const from = ui.fromDate.value || "";
-  const to = ui.toDate.value || "";  // <-- Fixed: Removed the invalid "to:" label
+  const to = ui.toDate.value || "";  // Fixed: Removed invalid "to:" label
 
   // filter
   let filtered = allBoards.filter(b => {
@@ -392,7 +386,7 @@ function populateTable(boardsToShow) {
 
     const checked = selectedIds.has(b.id) ? "checked" : "";
 
-    // Clip comments to 50 characters with ellipsis, and add click handler for popup
+    // Clip comments to 50 characters with ellipsis
     const clippedComments = b.comments && b.comments.length > 50 ? b.comments.substring(0, 50) + "..." : b.comments || "N/A";
     const fullComments = b.comments || "N/A";
 
@@ -438,7 +432,7 @@ function populateTable(boardsToShow) {
   });
   ui.tableBody.querySelectorAll(".comment-preview").forEach(span => {
     span.addEventListener("click", (e) => {
-      alert(e.target.getAttribute("data-full-comments"));
+      openCommentModal(e.target.getAttribute("data-full-comments"));
     });
   });
 
@@ -449,6 +443,43 @@ function populateTable(boardsToShow) {
   ui.tableBody.querySelectorAll(".history-btn").forEach(btn => {
     btn.addEventListener("click", () => openHistoryModal(btn.dataset.id));
   });
+}
+
+/* ===========================
+   Comment Modal
+   =========================== */
+function openCommentModal(fullComments) {
+  if (commentModal) {
+    commentModal.remove();
+    commentModal = null;
+  }
+
+  commentModal = document.createElement("div");
+  commentModal.className = "fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50";
+  commentModal.innerHTML = `
+    <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+      <div class="flex justify-between items-center border-b pb-2 mb-4">
+        <h2 class="text-xl font-semibold text-gray-900">Comment Preview</h2>
+        <button id="closeCommentModal" class="text-gray-500 hover:text-gray-700">&times;</button>
+      </div>
+      <div class="text-sm text-gray-700 mb-4">${escapeHtml(fullComments)}</div>
+      <div class="flex justify-end">
+        <button id="okCommentModal" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">OK</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(commentModal);
+
+  document.getElementById("closeCommentModal").addEventListener("click", closeCommentModal);
+  document.getElementById("okCommentModal").addEventListener("click", closeCommentModal);
+}
+
+function closeCommentModal() {
+  if (commentModal) {
+    commentModal.remove();
+    commentModal = null;
+  }
 }
 
 /* ===========================
