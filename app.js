@@ -325,7 +325,7 @@ function render() {
   }
   const techFilter = ui.technicianFilter.value || "";
   const from = ui.fromDate.value || "";
-  const to = ui.toDate.value || "";
+  to: const to = ui.toDate.value || "";
 
   // filter
   let filtered = allBoards.filter(b => {
@@ -385,6 +385,10 @@ function populateTable(boardsToShow) {
 
     const checked = selectedIds.has(b.id) ? "checked" : "";
 
+    // Clip comments to 50 characters with ellipsis, and add click handler for popup
+    const clippedComments = b.comments && b.comments.length > 50 ? b.comments.substring(0, 50) + "..." : b.comments || "N/A";
+    const fullComments = b.comments || "N/A";
+
     // left checkbox column, then rest
     tr.innerHTML = `
       <td class="px-4 py-4 align-middle">
@@ -396,7 +400,7 @@ function populateTable(boardsToShow) {
       <td class="px-6 py-4 text-sm text-slate-500">${escapeHtml(b.technician)}</td>
       <td class="px-6 py-4 text-sm text-slate-500">
         <div class="flex items-center justify-between">
-          <span class="truncate pr-2" title="${escapeHtml(b.comments)}">${escapeHtml(b.comments)}</span>
+          <span class="truncate cursor-pointer comment-preview" data-full-comments="${escapeHtmlAttr(fullComments)}" title="Click to view full comment">${escapeHtml(clippedComments)}</span>
           <div class="flex items-center gap-2">
             <button class="edit-btn text-blue-500 hover:text-blue-700" data-id="${b.id}" title="Edit">✏️</button>
             <button class="history-btn text-slate-500 hover:text-slate-700" data-id="${b.id}" title="History">📜</button>
@@ -408,17 +412,30 @@ function populateTable(boardsToShow) {
   }
   ui.tableBody.appendChild(frag);
 
-  // attach row checkbox handlers
+  // Attach row checkbox handlers
   ui.tableBody.querySelectorAll(".row-select").forEach(cb => {
     cb.addEventListener("change", (e) => {
       const id = e.target.getAttribute("data-id");
       if (e.target.checked) selectedIds.add(id);
       else selectedIds.delete(id);
-      updateSelectAllHeaderState(); // update header state
+      updateSelectAllHeaderState();
     });
   });
 
-  // attach edit / history
+  // Attach edit / history / comment popup handlers
+  ui.tableBody.querySelectorAll(".edit-btn").forEach(btn => {
+    btn.addEventListener("click", () => openEditModal(btn.dataset.id));
+  });
+  ui.tableBody.querySelectorAll(".history-btn").forEach(btn => {
+    btn.addEventListener("click", () => openHistoryModal(btn.dataset.id));
+  });
+  ui.tableBody.querySelectorAll(".comment-preview").forEach(span => {
+    span.addEventListener("click", (e) => {
+      alert(e.target.getAttribute("data-full-comments"));
+    });
+  });
+
+  // Attach edit / history
   ui.tableBody.querySelectorAll(".edit-btn").forEach(btn => {
     btn.addEventListener("click", () => openEditModal(btn.dataset.id));
   });
